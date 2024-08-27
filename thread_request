@@ -1,0 +1,92 @@
+"""并发编程1
+from concurrent.futures import ThreadPoolExecutor
+from threading import Thread, RLock
+import time
+import random
+
+
+class Account(object):
+    def __init__(self):
+        self.balance = 0.0
+        self.lock = RLock()
+
+    def deposit(self, money):
+        self.lock.acquire()
+        try:
+            new_balance = self.balance + money
+            time.sleep(random.randint(1,5)/10.0)
+            self.balance = new_balance
+        finally:
+            self.lock.release()
+
+
+def main():
+    account = Account()
+    start1 = time.time()
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        for _ in range(100):
+            pool.submit(account.deposit, 1)
+    print(f"最后的总金额为{account.balance}")
+    print(f"总花费时间{time.time()-start1}")
+    account1 = Account()
+    start2 = time.time()
+    threads = []
+    for _ in range(100):
+        thread = Thread(target=account1.deposit, args=(1, ))
+        thread.start()
+        threads.append(thread)
+    for thread in threads:
+        thread.join()
+    print(f"最后的总金额为{account1.balance}")
+    print(f"总花费时间{time.time()-start2}")
+"""
+
+
+# 由于在python中有GIL的存在，线程并不能充分发挥多核CPU的优势，但是进程不受GIL的限制
+# from multiprocessing import Process, current_process
+# from time import sleep
+# import os
+#
+#
+# def sub_task(content, nums):
+#     print(f'PID:{current_process().pid}')
+#     print(f'Name: {current_process().name}')
+#     counter, total = 0, nums.pop(0)
+#     print(f'Loop count: {total}')
+#     sleep(0.5)
+#     while counter < total:
+#         counter += 1
+#         print(f'{counter}: {content}')
+#         sleep(0.01)
+#
+#
+# def main():
+#     nums = [20, 30, 40]
+#     print(os.cpu_count())
+#     Process(target=sub_task, args=('Ping', nums)).start()
+#     Process(target=sub_task, args=('Pong', nums)).start()
+#     sub_task('Good', nums)
+#
+#
+# if __name__ == "__main__":
+#     main()
+def calc_average():
+    total, counter = 0, 0
+    avg_value = None
+    while True:
+        curr_value = yield avg_value
+        total += curr_value
+        counter += 1
+        avg_value = total / counter
+
+
+def main():
+    obj = calc_average()
+    # 生成器预激活
+    obj.send(None)
+    for _ in range(5):
+        print(obj.send(float(input())))
+
+
+if __name__ == '__main__':
+    main()
